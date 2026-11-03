@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+// Read caps: a misbehaving endpoint must not make us buffer unbounded data.
+const (
+	maxResponseBytes  = 64 << 20
+	maxErrorBodyBytes = 64 << 10
+	maxErrorMsgBytes  = 2048
+)
+
 // doStream sends the streaming request with retries on transient failures and
 // returns a 200 response (caller reads + closes the body). Only the request
 // establishment phase is retried — connection reset / timeout / 429 / 5xx before
@@ -48,9 +55,13 @@ func doStream(ctx context.Context, cfg Config, url string, body []byte, setHeade
 			if err != nil {
 				return nil, err
 			}
-			data, _ := io.ReadAll(resp.Body)
+			data, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
 			resp.Body.Close()
-			return nil, fmt.Errorf("%s: status %d: %s", errPrefix, resp.StatusCode, strings.TrimSpace(string(data)))
+			msg := strings.TrimSpace(string(data))
+			if len(msg) > maxErrorMsgBytes {
+				msg = strings.ToValidUTF8(msg[:maxErrorMsgBytes], "") + "…(truncated)"
+			}
+			return nil, fmt.Errorf("%s: status %d: %s", errPrefix, resp.StatusCode, msg)
 		}
 		if resp != nil {
 			resp.Body.Close()

@@ -30,7 +30,7 @@ func (a *fileArchiver) Write(tier noa.Tier, blockID, startRef, endRef string, co
 
 	rel := filepath.Join(noa.ArchiveTierDir(tier), noa.ArchiveFileName(blockID, startRef, endRef))
 	abs := filepath.Join(a.root, rel)
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(abs), 0o700); err != nil {
 		return "", "", fmt.Errorf("create archive dir: %w", err)
 	}
 
@@ -48,7 +48,7 @@ func (a *fileArchiver) Write(tier noa.Tier, blockID, startRef, endRef string, co
 		os.Remove(tmpName)
 		return "", "", fmt.Errorf("close archive: %w", err)
 	}
-	if err := os.Chmod(tmpName, 0o644); err != nil {
+	if err := os.Chmod(tmpName, 0o600); err != nil {
 		os.Remove(tmpName)
 		return "", "", fmt.Errorf("chmod archive: %w", err)
 	}

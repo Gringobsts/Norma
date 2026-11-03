@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"net/http"
@@ -234,21 +235,34 @@ func defaultHTTPClient(proxy string) (*http.Client, error) {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	if proxy == "" {
 		tr.Proxy = http.ProxyFromEnvironment
-		return &http.Client{Transport: tr}, nil
+		return &http.Client{Transport: tr, CheckRedirect: RefuseCrossHostRedirect}, nil
 	}
 	u, err := url.Parse(proxy)
 	if err != nil {
-		return nil, fmt.Errorf("llm: invalid proxy %q: %w", proxy, err)
+		// Unwrap drops url.Error's echo of the raw URL (may hold credentials).
+		return nil, fmt.Errorf("llm: invalid proxy: %w", errors.Unwrap(err))
 	}
 	switch u.Scheme {
 	case "http", "https", "socks5": // supported by net/http's Transport.Proxy
 	case "":
-		return nil, fmt.Errorf("llm: proxy %q missing scheme (use http://, https:// or socks5://)", proxy)
+		return nil, fmt.Errorf("llm: proxy %q missing scheme (use http://, https:// or socks5://)", u.Redacted())
 	default:
 		return nil, fmt.Errorf("llm: unsupported proxy scheme %q (use http, https or socks5)", u.Scheme)
 	}
 	tr.Proxy = http.ProxyURL(u)
-	return &http.Client{Transport: tr}, nil
+	return &http.Client{Transport: tr, CheckRedirect: RefuseCrossHostRedirect}, nil
+}
+
+// RefuseCrossHostRedirect is an http.Client.CheckRedirect that refuses redirects
+// to another host, so API keys in custom headers never leave the configured host.
+func RefuseCrossHostRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	if req.URL.Host != via[0].URL.Host {
+		return fmt.Errorf("refusing cross-host redirect to %q", req.URL.Host)
+	}
+	return nil
 }
 
 func envOr(key, def string) string {

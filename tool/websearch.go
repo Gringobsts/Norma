@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Gringobsts/Norma/llm"
 	"github.com/Gringobsts/Norma/permission"
 	"golang.org/x/net/html"
 )
@@ -107,6 +108,10 @@ func newSearchProvider(cfg WebSearchConfig) (searchProvider, error) {
 		backend = "ddgs"
 	}
 	client := newFetchClient(WebFetchConfig{Proxy: cfg.Proxy, CACert: cfg.CACert, InsecureTLS: cfg.InsecureTLS})
+	if backend != "ddgs" {
+		// Keyed backends: the API key must never follow a redirect to another host.
+		client.CheckRedirect = llm.RefuseCrossHostRedirect
+	}
 	switch backend {
 	case "ddgs":
 		return &ddgsProvider{client: client, endpoint: ddgsEndpoint}, nil

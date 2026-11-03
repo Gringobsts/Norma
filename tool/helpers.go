@@ -90,12 +90,12 @@ func spillOutput(dir, s string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(abs, 0o755); err != nil {
+	if err := os.MkdirAll(abs, 0o700); err != nil {
 		return "", err
 	}
 	name := fmt.Sprintf("output-%d-%d.txt", time.Now().Unix(), spillSeq.Add(1))
 	path := filepath.Join(abs, name)
-	if err := os.WriteFile(path, []byte(s), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(s), 0o600); err != nil {
 		return "", err
 	}
 	return path, nil

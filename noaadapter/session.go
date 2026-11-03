@@ -115,7 +115,7 @@ func newSession(o Options) (*Session, error) {
 		now = time.Now
 	}
 
-	root := filepath.Join(o.ArchiveBaseDir, o.SessionID)
+	root := filepath.Join(o.ArchiveBaseDir, safeID(o.SessionID))
 	s := &Session{
 		cfg:       cfg,
 		store:     NewStateStore(root),

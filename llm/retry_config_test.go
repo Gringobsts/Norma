@@ -121,3 +121,24 @@ func TestOpenAIStreamEmptyRetryDisabled(t *testing.T) {
 		t.Fatalf("calls=%d, want 1 (retry disabled)", calls.Load())
 	}
 }
+
+// The built-in client follows same-host redirects but refuses cross-host ones,
+// so the API key header never reaches another host.
+func TestDefaultClientRefusesCrossHostRedirect(t *testing.T) {
+	var leaked atomic.Bool
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { leaked.Store(true) }))
+	defer other.Close()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, other.URL, http.StatusTemporaryRedirect)
+	}))
+	defer api.Close()
+	c, err := defaultHTTPClient("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodGet, api.URL, nil)
+	req.Header.Set("x-api-key", "secret")
+	if _, err := c.Do(req); err == nil || leaked.Load() {
+		t.Fatalf("cross-host redirect must be refused (err=%v leaked=%v)", err, leaked.Load())
+	}
+}

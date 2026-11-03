@@ -147,7 +147,7 @@ func (s *StateStore) readFile(sessionID, archiveRoot string) (noa.CompressionSta
 // writeAtomic replaces the state file via temp + rename, so a crash mid-write
 // cannot leave a truncated file where a valid one was.
 func (s *StateStore) writeAtomic(st noa.CompressionState) error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return fmt.Errorf("create state dir: %w", err)
 	}
 	data, err := json.MarshalIndent(toFile(st), "", "  ")
@@ -168,7 +168,7 @@ func (s *StateStore) writeAtomic(st noa.CompressionState) error {
 		os.Remove(name)
 		return fmt.Errorf("close state: %w", err)
 	}
-	if err := os.Chmod(name, 0o644); err != nil {
+	if err := os.Chmod(name, 0o600); err != nil {
 		os.Remove(name)
 		return err
 	}

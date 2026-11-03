@@ -2,6 +2,7 @@ package noaadapter
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/Gringobsts/Norma/noa"
 )
@@ -9,6 +10,20 @@ import (
 // maxInheritDepth bounds the walk up the parent chain. Deep enough for any real
 // nesting, shallow enough that a cycle or a mis-linked session cannot spin.
 const maxInheritDepth = 8
+
+// safeID maps a session/agent ID to a single safe path segment: chars outside
+// [A-Za-z0-9._-] become '_' and "."/".." become "_".
+func safeID(id string) string {
+	if id == "." || id == ".." {
+		return "_"
+	}
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-' {
+			return r
+		}
+		return '_'
+	}, id)
+}
 
 // DeriveChildState hands a subagent the parent's compression ledger.
 //
@@ -37,7 +52,7 @@ func DeriveChildState(parent noa.CompressionState, childSessionID, childArchiveR
 
 // SubagentArchiveRoot is where a subagent's own archives live.
 func SubagentArchiveRoot(base, sessionID, agentID string) string {
-	return filepath.Join(base, sessionID, "subagents", agentID)
+	return filepath.Join(base, safeID(sessionID), "subagents", safeID(agentID))
 }
 
 // InheritOptions describes one link in a parent chain.
@@ -61,7 +76,7 @@ type InheritOptions struct {
 // Returns ok=false when nothing was found, which is the normal case for a
 // genuinely new session.
 func InheritState(o InheritOptions) (noa.CompressionState, string, bool) {
-	root := filepath.Join(o.ArchiveBaseDir, o.SessionID)
+	root := filepath.Join(o.ArchiveBaseDir, safeID(o.SessionID))
 	for i, parentID := range o.ParentIDs {
 		if i >= maxInheritDepth {
 			break
@@ -69,7 +84,7 @@ func InheritState(o InheritOptions) (noa.CompressionState, string, bool) {
 		if parentID == "" || parentID == o.SessionID {
 			continue
 		}
-		parentRoot := filepath.Join(o.ArchiveBaseDir, parentID)
+		parentRoot := filepath.Join(o.ArchiveBaseDir, safeID(parentID))
 		store := NewStateStore(parentRoot)
 		if !store.Exists() {
 			continue

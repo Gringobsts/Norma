@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -213,40 +212,9 @@ func TestWebFetchRejectsStaticAssets(t *testing.T) {
 	}
 }
 
-func TestProxyLikelyErr(t *testing.T) {
-	// Proxy/MITM-caused failures → a direct retry may help.
-	for _, s := range []string{
-		`Get "https://x/": EOF`,
-		"proxyconnect tcp: dial tcp 127.0.0.1:8788: connect: connection refused",
-		"read tcp: connection reset by peer",
-		"http2: server sent GOAWAY",
-		"remote error: tls: handshake failure",
-		"malformed HTTP response",
-	} {
-		if !proxyLikelyErr(errors.New(s)) {
-			t.Errorf("want retry (proxy-likely) for %q", s)
-		}
-	}
-	// Target/caller problems → a direct retry won't fix them.
-	for _, s := range []string{
-		"dial tcp: lookup nope.invalid: no such host",
-		"context deadline exceeded",
-		"context canceled",
-		"net/http: request canceled (Client.Timeout exceeded while awaiting headers)",
-	} {
-		if proxyLikelyErr(errors.New(s)) {
-			t.Errorf("want NO retry for %q", s)
-		}
-	}
-	if proxyLikelyErr(nil) {
-		t.Error("nil error must be false")
-	}
-}
-
-// TestWebFetchProxyFallback proves a proxied fetch that fails for a proxy-caused
-// reason (here: the proxy port is dead → connection refused) retries once directly
-// (no proxy) and reaches the target. A successful fetch is not annotated.
-func TestWebFetchProxyFallback(t *testing.T) {
+// TestWebFetchProxyNoBypass proves a failing configured proxy is never bypassed:
+// the fetch errors instead of reaching the target directly.
+func TestWebFetchProxyNoBypass(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("content-type", "text/html")
 		w.Write([]byte(`<html><body><h1>Direct OK</h1></body></html>`))
@@ -257,9 +225,8 @@ func TestWebFetchProxyFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("webfetch: %v", err)
 	}
-	out := res.Flatten()
-	if !strings.Contains(out, "Direct OK") {
-		t.Fatalf("direct fallback should have fetched the page: %q", out)
+	if out := res.Flatten(); !res.IsError || strings.Contains(out, "Direct OK") {
+		t.Fatalf("dead proxy must fail, not fetch directly: %q", out)
 	}
 }
 

@@ -243,14 +243,29 @@ type Manager struct {
 
 func baseTaskDir() string { return filepath.Join(os.TempDir(), "norma") }
 
+// safeID maps a session/agent ID to a single safe path segment: chars outside
+// [A-Za-z0-9._-] become '_' and "."/".." become "_".
+func safeID(id string) string {
+	if id == "." || id == ".." {
+		return "_"
+	}
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-' {
+			return r
+		}
+		return '_'
+	}, id)
+}
+
 // NewManager creates the per-session task directory and garbage-collects stale
 // directories left by previous sessions.
 func NewManager(sessionID string) (*Manager, error) {
 	if sessionID == "" {
 		sessionID = "default"
 	}
+	sessionID = safeID(sessionID)
 	dir := filepath.Join(baseTaskDir(), sessionID, "tasks")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	cleanStaleSessions(baseTaskDir(), sessionID)

@@ -420,7 +420,7 @@ func (p *openaiProvider) Complete(ctx context.Context, req CompletionRequest) (M
 		if err != nil {
 			return Message{}, "", Usage{}, err
 		}
-		raw, rerr := io.ReadAll(resp.Body)
+		raw, rerr := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 		resp.Body.Close()
 		if rerr != nil {
 			return Message{}, "", Usage{}, rerr

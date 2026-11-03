@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,12 +59,26 @@ func NewStore(dir string) *Store { return &Store{dir: dir} }
 
 // MainPath is the JSONL file for a top-level session.
 func (s *Store) MainPath(sessionID string) string {
-	return filepath.Join(s.dir, sessionID+".jsonl")
+	return filepath.Join(s.dir, safeID(sessionID)+".jsonl")
 }
 
 // AgentPath is the sidechain JSONL file for a subagent of a session.
 func (s *Store) AgentPath(sessionID, agentID string) string {
-	return filepath.Join(s.dir, sessionID, "subagents", "agent-"+agentID+".jsonl")
+	return filepath.Join(s.dir, safeID(sessionID), "subagents", "agent-"+safeID(agentID)+".jsonl")
+}
+
+// safeID maps a session/agent ID to a single safe path segment: chars outside
+// [A-Za-z0-9._-] become '_' and "."/".." become "_".
+func safeID(id string) string {
+	if id == "." || id == ".." {
+		return "_"
+	}
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-' {
+			return r
+		}
+		return '_'
+	}, id)
 }
 
 // Append writes records to path as JSONL, creating parent directories. It is
@@ -74,10 +89,10 @@ func (s *Store) Append(path string, recs ...Record) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

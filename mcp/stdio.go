@@ -18,7 +18,7 @@ func (s *stdioCloser) Close() error {
 		s.stdin.Close()
 	}
 	if s.cmd != nil && s.cmd.Process != nil {
-		_ = s.cmd.Process.Kill()
+		treeKill(s.cmd.Process)
 		_ = s.cmd.Wait()
 	}
 	return nil
@@ -31,6 +31,7 @@ func (s *stdioCloser) Close() error {
 // applied on top of the parent process environment; pass nil for none.
 func NewStdioClient(ctx context.Context, server, command string, env map[string]string, args ...string) (*Client, error) {
 	cmd := exec.Command(command, args...)
+	setProcGroup(cmd)
 	if len(env) > 0 {
 		cmd.Env = os.Environ()
 		for k, v := range env {

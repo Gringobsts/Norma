@@ -3,6 +3,8 @@ package transcript
 import (
 	"context"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Gringobsts/Norma/llm"
@@ -180,4 +182,22 @@ func appendRaw(path, line string) error {
 	defer f.Close()
 	_, err = f.WriteString(line)
 	return err
+}
+
+func TestPathsStayInsideStore(t *testing.T) {
+	dir := t.TempDir()
+	s := NewStore(dir)
+	for _, p := range []string{
+		s.MainPath("../../etc/x"),
+		s.AgentPath("..", "../../y"),
+		s.AgentPath(".", `a\b`),
+	} {
+		rel, err := filepath.Rel(dir, p)
+		if err != nil || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			t.Fatalf("path escapes store: %q", p)
+		}
+	}
+	if got := s.MainPath("ok-ID_1.2"); got != filepath.Join(dir, "ok-ID_1.2.jsonl") {
+		t.Fatalf("valid ID must be unchanged: %q", got)
+	}
 }

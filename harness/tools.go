@@ -3,6 +3,7 @@ package harness
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/Gringobsts/Norma/llm"
 	"github.com/Gringobsts/Norma/permission"
@@ -25,12 +26,20 @@ func acceptsRawInput(t tool.CoreTool) bool {
 // failures become error results. It is safe to call from the streaming
 // executor's goroutines (read-only access to loop config; permission/hook
 // callbacks are the host's responsibility to make safe).
-func (l *loop) execOne(use llm.ContentBlock, emitProgress func(tool.ProgressInfo)) (llm.ContentBlock, []llm.Message) {
+func (l *loop) execOne(use llm.ContentBlock, emitProgress func(tool.ProgressInfo)) (out llm.ContentBlock, extra []llm.Message) {
+	defer func() {
+		if r := recover(); r != nil {
+			out, extra = llm.ToolResultText(use.ID, fmt.Sprintf("Error: tool %q panicked: %v", use.Name, r), true), nil
+		}
+	}()
 	t, ok := l.in.Tools.Get(use.Name)
 	if !ok {
 		return llm.ToolResultText(use.ID, fmt.Sprintf("Error: unknown tool %q", use.Name), true), nil
 	}
 	input := use.Input
+	if msg := l.gateDenied(use.Name, input); msg != "" {
+		return llm.ToolResultText(use.ID, "Error: "+msg, true), nil
+	}
 
 	// Schema validation (FR-04.5).
 	//
@@ -117,6 +126,30 @@ func (l *loop) execOne(use llm.ContentBlock, emitProgress func(tool.ProgressInfo
 		content = []llm.ContentBlock{llm.TextBlock("(no output)")}
 	}
 	return llm.ContentBlock{Type: llm.BlockToolResult, ToolUseID: use.ID, Content: content, IsError: res.IsError}, res.Extra
+}
+
+// gateDenied enforces at execution time what schema hiding only suggests:
+// deferred tools run only through ExecuteExtraTool (which checks the unlock set),
+// and Settlement.DisabledTools never run while settling. Returns "" when allowed.
+func (l *loop) gateDenied(name string, input json.RawMessage) string {
+	if slices.Contains(l.in.DeferredTools, name) {
+		return fmt.Sprintf("tool %q is deferred; invoke it via %s", name, tool.ExecuteExtraToolName)
+	}
+	if !l.settling || l.in.Settlement == nil {
+		return ""
+	}
+	target := name
+	if name == tool.ExecuteExtraToolName {
+		var a struct {
+			ToolName string `json:"tool_name"`
+		}
+		_ = json.Unmarshal(input, &a)
+		target = a.ToolName
+	}
+	if slices.Contains(l.in.Settlement.DisabledTools, name) || slices.Contains(l.in.Settlement.DisabledTools, target) {
+		return fmt.Sprintf("tool %q is disabled during wrap-up", target)
+	}
+	return ""
 }
 
 // capOutput runs every text block of a tool result through the idempotent
