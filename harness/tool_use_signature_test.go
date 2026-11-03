@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/Autumn-27/norma/llm"
-	"github.com/Autumn-27/norma/permission"
-	"github.com/Autumn-27/norma/tool"
+	"github.com/Gringobsts/Norma/llm"
+	"github.com/Gringobsts/Norma/permission"
+	"github.com/Gringobsts/Norma/tool"
 )
 
 // recordingTool captures the raw input every invocation receives, so a test can

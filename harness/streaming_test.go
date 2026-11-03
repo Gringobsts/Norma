@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/norma/llm"
-	"github.com/Autumn-27/norma/permission"
-	"github.com/Autumn-27/norma/tool"
+	"github.com/Gringobsts/Norma/llm"
+	"github.com/Gringobsts/Norma/permission"
+	"github.com/Gringobsts/Norma/tool"
 )
 
 // TestStreamingToolExecutionOverlapsStream proves FR-01.4: a read-only,

@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Autumn-27/norma/llm"
-	"github.com/Autumn-27/norma/permission"
-	"github.com/Autumn-27/norma/tool"
+	"github.com/Gringobsts/Norma/llm"
+	"github.com/Gringobsts/Norma/permission"
+	"github.com/Gringobsts/Norma/tool"
 )
 
 // echoProvider answers each worker with text derived from the task's last user

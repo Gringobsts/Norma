@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/norma/llm"
-	"github.com/Autumn-27/norma/noa"
-	"github.com/Autumn-27/norma/tool"
+	"github.com/Gringobsts/Norma/llm"
+	"github.com/Gringobsts/Norma/noa"
+	"github.com/Gringobsts/Norma/tool"
 )
 
 // The scripted simAgent models a model that either cooperates perfectly or does

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/norma/harness"
-	"github.com/Autumn-27/norma/llm"
-	"github.com/Autumn-27/norma/permission"
-	"github.com/Autumn-27/norma/tool"
-	"github.com/Autumn-27/norma/transcript"
+	"github.com/Gringobsts/Norma/harness"
+	"github.com/Gringobsts/Norma/llm"
+	"github.com/Gringobsts/Norma/permission"
+	"github.com/Gringobsts/Norma/tool"
+	"github.com/Gringobsts/Norma/transcript"
 )
 
 // textServer replies with a single end_turn text message carrying usage.
