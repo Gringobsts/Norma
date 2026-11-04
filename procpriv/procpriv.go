@@ -49,9 +49,24 @@ func Enabled() bool { return load() != nil }
 // Chown hands path to the tool user when enabled and path is under the work
 // root, so files the host writes for the agent stay editable by its commands.
 func Chown(path string) {
-	if p := load(); p != nil && p.workRoot != "" && within(p.workRoot, path) {
-		_ = os.Lchown(path, p.uid, p.gid)
+	p := load()
+	if p == nil || p.workRoot == "" || !within(p.workRoot, path) {
+		return
 	}
+	fi, err := os.Lstat(path)
+	if err != nil || fi.Mode()&os.ModeSymlink != 0 {
+		return
+	}
+	if os.Lchown(path, p.uid, p.gid) == nil {
+		return
+	}
+	// Some bind mounts (Docker Desktop file sharing) refuse chown: open the
+	// mode instead so the tool user can still write its own work dir.
+	mode := os.FileMode(0o666)
+	if fi.IsDir() {
+		mode = 0o777
+	}
+	_ = os.Chmod(path, mode)
 }
 
 func within(root, path string) bool {
