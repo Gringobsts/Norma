@@ -147,7 +147,7 @@ func NewSearchExtraTools(reg *Registry, deferred []string) CoreTool {
 			// addByQuery resolves one query token: exact full-name first, then
 			// case-insensitive suffix match against each deferred tool name so that
 			// short MCP tool names like "list_projects" also find
-			// "mcp__scopesentry__list_projects".
+			// "mcp__workspace__list_projects".
 			addByQuery := func(token string) {
 				token = strings.TrimSpace(token)
 				if token == "" {
@@ -183,8 +183,8 @@ func NewSearchExtraTools(reg *Registry, deferred []string) CoreTool {
 					if !ok {
 						continue
 					}
-					// normalise __ → space so "scopesentry list_projects" finds
-					// "mcp__scopesentry__list_projects".
+					// normalise __ → space so "workspace list_projects" finds
+					// "mcp__workspace__list_projects".
 					haystack := strings.ReplaceAll(
 						strings.ToLower(t.Name()+" "+t.Description()), "__", " ")
 					allMatch := true
