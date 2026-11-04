@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Gringobsts/Norma/procpriv"
 )
 
 // Background task execution.
@@ -377,6 +379,7 @@ func (m *Manager) Spawn(spec SpawnSpec) (*Task, error) {
 	cmd.Stdout = f
 	cmd.Stderr = f
 	setDetached(cmd)
+	procpriv.Apply(cmd)
 
 	if err := cmd.Start(); err != nil {
 		_ = f.Close()

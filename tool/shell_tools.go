@@ -25,7 +25,13 @@ func sessTool(name, desc string, schema map[string]any, readOnly bool, run func(
 		Name: name, Description: desc, Schema: schema,
 		ReadOnly:   func(json.RawMessage) bool { return readOnly },
 		Concurrent: func(json.RawMessage) bool { return false },
-		Permissions: func(context.Context, json.RawMessage, permission.Context) permission.Decision {
+		Permissions: func(ctx context.Context, in json.RawMessage, pc permission.Context) permission.Decision {
+			switch name {
+			case "shell_open": // runs a command, same floor + ask as Bash
+				return bashPermissions(ctx, in, pc)
+			case "shell_send":
+				return permission.AskUser("send input to interactive shell")
+			}
 			return permission.Allowed()
 		},
 		Run: run,

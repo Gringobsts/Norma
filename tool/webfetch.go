@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -70,7 +71,7 @@ const maxFetchBytes = 2 << 20 // 2 MiB
 // newFetchClient returns an HTTP client honoring the proxy / TLS config.
 func newFetchClient(cfg WebFetchConfig) *http.Client {
 	if cfg.Proxy == "" && !cfg.InsecureTLS && cfg.CACert == "" {
-		return &http.Client{}
+		return &http.Client{CheckRedirect: stopCrossHostRedirect}
 	}
 	tr := &http.Transport{}
 	if cfg.Proxy != "" {
@@ -94,7 +95,21 @@ func newFetchClient(cfg WebFetchConfig) *http.Client {
 			}
 		}
 	}
-	return &http.Client{Transport: tr}
+	return &http.Client{Transport: tr, CheckRedirect: stopCrossHostRedirect}
+}
+
+// stopCrossHostRedirect follows same-host redirects only. A redirect to another
+// host is returned as-is (status + Location) instead of followed, so a target
+// cannot bounce WebFetch to loopback, metadata or LAN hosts past the host's
+// per-call scope gate; the model has to fetch the new URL as a fresh call.
+func stopCrossHostRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	if req.URL.Host != via[0].URL.Host {
+		return http.ErrUseLastResponse
+	}
+	return nil
 }
 
 // staticAssetExts are file extensions WebFetch refuses: linked resources (scripts,
@@ -160,6 +175,9 @@ func webFetchRunner(cfg WebFetchConfig) func(context.Context, json.RawMessage, *
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 
 		header := fmt.Sprintf("[%d %s] %s\n", resp.StatusCode, http.StatusText(resp.StatusCode), in.URL)
+		if loc := resp.Header.Get("Location"); loc != "" && resp.StatusCode >= 300 && resp.StatusCode < 400 {
+			header += "[redirect to another host not followed: " + loc + "]\n"
+		}
 		// Cheap fingerprint signal that HTML→Markdown would otherwise hide.
 		if sv := resp.Header.Get("Server"); sv != "" {
 			header += "Server: " + sv + "\n"

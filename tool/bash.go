@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Gringobsts/Norma/permission"
+	"github.com/Gringobsts/Norma/procpriv"
 )
 
 // catastrophicBash matches a small set of irreversibly destructive commands
@@ -184,6 +185,7 @@ func runBashSync(ctx context.Context, tc *ToolContext, command string, timeout t
 	} else {
 		cmd.Env = withEnv(nil)
 	}
+	procpriv.Apply(cmd)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf

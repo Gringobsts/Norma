@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/Gringobsts/Norma/procpriv"
 )
 
 // stdioCloser shuts down a spawned MCP server process and its pipes.
@@ -38,6 +40,7 @@ func NewStdioClient(ctx context.Context, server, command string, env map[string]
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
 	}
+	procpriv.Apply(cmd)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

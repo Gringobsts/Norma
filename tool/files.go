@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Gringobsts/Norma/procpriv"
 )
 
 // NewRead builds the Read tool: reads a file with cat -n style line numbers and
@@ -177,13 +179,18 @@ func runWrite(_ context.Context, input json.RawMessage, tc *ToolContext) (Result
 		existed = true
 	}
 	if dir := filepath.Dir(path); dir != "" {
+		_, statErr := os.Stat(dir)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return Errorf(fmt.Sprintf("Error creating directory: %v", err)), nil
+		}
+		if statErr != nil {
+			procpriv.Chown(dir)
 		}
 	}
 	if err := os.WriteFile(path, []byte(in.Content), 0o644); err != nil {
 		return Errorf(fmt.Sprintf("Error writing %s: %v", in.FilePath, err)), nil
 	}
+	procpriv.Chown(path)
 	verb := "Created"
 	if existed {
 		verb = "Overwrote"
@@ -243,6 +250,7 @@ func runEdit(_ context.Context, input json.RawMessage, tc *ToolContext) (Result,
 	} else {
 		updated = strings.Replace(content, in.OldString, in.NewString, 1)
 	}
+	defer procpriv.Chown(path)
 	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
 		return Errorf(fmt.Sprintf("Error writing %s: %v", in.FilePath, err)), nil
 	}

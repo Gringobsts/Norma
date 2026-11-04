@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/Gringobsts/Norma/procpriv"
 )
 
 // NewMultiEdit builds the MultiEdit tool: applies a sequence of exact-string
@@ -80,6 +82,7 @@ func runMultiEdit(_ context.Context, input json.RawMessage, tc *ToolContext) (Re
 		}
 		total += count
 	}
+	defer procpriv.Chown(path)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return Errorf(fmt.Sprintf("Error writing %s: %v", in.FilePath, err)), nil
 	}
